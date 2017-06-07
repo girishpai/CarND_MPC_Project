@@ -101,6 +101,34 @@ int main() {
           double steer_value;
           double throttle_value;
 
+	  //Fit polynomial to the waypoints
+	  Eigen::VectorXd ptsx_eigen(ptsx.size());
+	  Eigen::VectorXd ptsy_eigen(ptsy.size());
+
+	  for(int i = 0; i < ptsx.size() ; i++) {
+	    ptsx_eigen(i) = ptsx[i];
+	  }
+
+	  for(int i = 0; i < ptsx.size() ; i++) {
+	    ptsy_eigen(i) = ptsy[i];
+	  }
+	  auto coeffs = polyfit(ptsx_eigen, ptsy_eigen, 3);
+
+	  //Cross Track Error between the waypoint and vehicle position.
+	  double cte = polyeval(coeffs, px) - py;
+
+	  //Orientation error
+	  double epsi = psi - atan(coeffs[1]);
+
+	  //State
+	  Eigen::VectorXd state(6);
+	  state << px, py, psi, v, cte, epsi;
+
+	  auto vars = mpc.Solve(state, coeffs);
+
+	  steer_value = vars[6];
+	  throttle_value = vars[7];
+
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
