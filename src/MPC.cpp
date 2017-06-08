@@ -6,12 +6,14 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
+
+
 size_t N = 20;
 double dt = 0.05;
 
 // Set cost factors
 // TODO: tune cost factors
-int cost_cte_factor = 5;
+int cost_cte_factor = 20;
 int cost_epsi_factor = 1000;
 int cost_v_factor = 1;
 int cost_current_delta_factor = 2000;
@@ -32,7 +34,7 @@ int cost_diff_a_factor = 1;
 const double Lf = 2.67;
 
 //Reference velocity convert to m/s.
-double ref_v = 0.44704 * 40;
+double ref_v = 0.44704 * 20;
 
 size_t x_start = 0;
 size_t y_start = x_start + N;
@@ -60,25 +62,26 @@ class FG_eval {
     // Any additions to the cost should be added to `fg[0]`.
     fg[0] = 0;
 
-    for (int i = 0; i < N; i++) {
-      fg[0] += cost_cte_factor*pow(vars[cte_start + i], 2);
-      fg[0] += cost_epsi_factor*pow(vars[epsi_start + i], 2);
-      fg[0] += cost_v_factor*pow(vars[v_start + i] - ref_v, 2);
-      
+    // The part of the cost based on the reference state.
+    for (int t = 0; t < N; t++) {
+      fg[0] += cost_cte_factor * CppAD::pow(vars[cte_start + t], 2);
+      fg[0] += cost_epsi_factor * CppAD::pow(vars[epsi_start + t], 2);
+      fg[0] += cost_v_factor * CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
-    
-    // (2) Cost increases with use of actuators
-    for (int i = 0; i < N - 1; i++) {
-      fg[0] += cost_current_delta_factor*pow(vars[delta_start + i], 2);
-      fg[0] += cost_current_a_factor*pow(vars[a_start + i], 2);
+
+    // Minimize the use of actuators.
+    for (int t = 0; t < N - 1; t++) {
+      fg[0] += cost_current_delta_factor * CppAD::pow(vars[delta_start + t], 2);
+      fg[0] +=  cost_current_a_factor * CppAD::pow(vars[a_start + t], 2);
     }
-    
-    // (3) Cost increases with value gap between sequential actuators
-    for (int i=0; i < N-2; i++) {
-      fg[0] += cost_diff_delta_factor*pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
-      fg[0] += cost_diff_a_factor*pow(vars[a_start + i + 1] - vars[a_start + i], 2);
+
+    // Minimize the value gap between sequential actuations.
+    for (int t = 0; t < N - 2; t++) {
+      fg[0] += cost_diff_delta_factor * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] += cost_diff_a_factor * CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
-    
+
+ 
     //
     // Setup Constraints
     //
@@ -121,10 +124,8 @@ class FG_eval {
       AD<double> f0 = coeffs[0] + coeffs[1] * x0;
       AD<double> psides0 = CppAD::atan(coeffs[1]);
 
-      // Here's `x` to get you started.
-      // The idea here is to constraint this value to be 0.
-      //
-      // Recall the equations for the model:
+      
+      // The kinematic equations for the model are as follows:
       // x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
       // y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
       // psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
@@ -198,7 +199,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs,vector<d
 
   // The upper and lower limits of delta are set to -25 and 25
   // degrees (values in radians).
-  // NOTE: Feel free to change this to something else.
   for (int i = delta_start; i < a_start; i++) {
     vars_lowerbound[i] = -0.436332;
     vars_upperbound[i] = 0.436332;
@@ -284,8 +284,5 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs,vector<d
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
   
-  return {solution.x[x_start + 1],   solution.x[y_start + 1],
-          solution.x[psi_start + 1], solution.x[v_start + 1],
-          solution.x[cte_start + 1], solution.x[epsi_start + 1],
-          solution.x[delta_start],   solution.x[a_start]};
+  return {solution.x[delta_start],   solution.x[a_start]};
 }
