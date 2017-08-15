@@ -58,7 +58,7 @@ class FG_eval {
     // `fg` a vector of the cost constraints, `vars` is a vector of variable values (state & actuators)
     // NOTE: You'll probably go back and forth between this function and
     // the Solver function below.
-        // The cost is stored is the first element of `fg`.
+    // The cost is stored is the first element of `fg`.
     // Any additions to the cost should be added to `fg[0]`.
     fg[0] = 0;
 
@@ -66,6 +66,8 @@ class FG_eval {
     for (int t = 0; t < N; t++) {
       fg[0] += cost_cte_factor * CppAD::pow(vars[cte_start + t], 2);
       fg[0] += cost_epsi_factor * CppAD::pow(vars[epsi_start + t], 2);
+
+      //Make sure the velocity is close to reference velocity
       fg[0] += cost_v_factor * CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 

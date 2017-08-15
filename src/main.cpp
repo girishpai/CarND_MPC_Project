@@ -136,15 +136,34 @@ int main() {
 	  //State
 	  Eigen::VectorXd state(6);
 
-	  //In the car coordinate system, the car is at the origin
-	  //Hence px = py = psi = 0
-	  state << 0, 0, 0, v, cte, epsi;
+
+	  	  
+          // Previous steering angle and throttle
+          double delta = j[1]["steering_angle"];
+          double prev_a = j[1]["throttle"];
+          
+         
+	 //In the car coordinate system, the car is at the origin
+	 //Hence px = py = psi = 0
+
+	  //Take latency into consideration. Predict the state of vehicle after latency and send to solver. 
+          double dt = 0.1;
+	  const double Lf = 2.67;
+          double post_latency_x = v * dt;
+          double post_latency_y = 0;
+          double post_latency_psi = - v * delta / Lf * dt;
+          double post_latency_v = v + prev_a * dt;
+          double post_latency_cte = cte + v * sin(epsi) * dt;
+          double post_latency_epsi = epsi + post_latency_psi;
+
+	  state << post_latency_x, post_latency_y, post_latency_psi, post_latency_v, post_latency_cte, post_latency_epsi;
 
 	  vector<double> mpc_x,mpc_y;
 	  auto vars = mpc.Solve(state, coeffs,mpc_x,mpc_y);
 
 	  steer_value = vars[0];
 	  throttle_value = vars[1];
+
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
